@@ -71,27 +71,26 @@ class PhoneNumberConstraint extends AbstractConstraint {
                 allowedRegionsString = allowedRegions.join(', ')
             }
         }
-
-        try {
-            phoneNumberInstance = phoneNumberUtil.parse(propertyValue.toString(), getPhoneNumberService().defaultRegion)
-        } catch (NumberParseException e) {
-            Object[] args = [constraintPropertyName, constraintOwningClass, propertyValue, e.errorType, e.toString()]
-            rejectValue(target, errors, DEFAULT_INVALID_PHONE_NUMBER_MESSAGE_CODE,
-                "phoneNumber.${e.errorType.toString().toLowerCase()}", args)
-            return
+        def numberExceptionHandled = false
+        def regionCheck = {
+            try {
+                phoneNumberInstance = phoneNumberUtil.parse(propertyValue.toString(), it)
+                return phoneNumberUtil.isValidNumberForRegion(phoneNumberInstance, it)
+            } catch (NumberParseException e) {
+                if (!numberExceptionHandled) {
+                    numberExceptionHandled = true
+                    Object[] args = [constraintPropertyName, constraintOwningClass, propertyValue, e.errorType, e.toString()]
+                    rejectValue(target, errors, DEFAULT_INVALID_PHONE_NUMBER_MESSAGE_CODE,
+                            "phoneNumber.${e.errorType.toString().toLowerCase()}", args)
+                }
+                return false
+            }
         }
-
-        def isPossible = phoneNumberUtil.isPossibleNumberWithReason(phoneNumberInstance)
-
-        if (isPossible != PhoneNumberUtil.ValidationResult.IS_POSSIBLE) {
-            Object[] args = [constraintPropertyName, constraintOwningClass, propertyValue, isPossible, isPossible.toString()]
-            rejectValue(target, errors, DEFAULT_INVALID_PHONE_NUMBER_MESSAGE_CODE,
-                "phoneNumber.${isPossible.toString().toLowerCase()}", args)
-
-        } else if (strict && !allowedRegions.any{phoneNumberUtil.isValidNumberForRegion(phoneNumberInstance, it)}) {
+        if (!allowedRegions.any(regionCheck)) {
             Object[] args = [constraintPropertyName, constraintOwningClass, propertyValue, 0, "not valid for $allowedRegionsString"]
             rejectValue(target, errors, DEFAULT_INVALID_PHONE_NUMBER_MESSAGE_CODE,
-                "phoneNumber.invalidForRegion", args)
+                    "phoneNumber.invalidForRegion", args)
+
         }
     }
 }
