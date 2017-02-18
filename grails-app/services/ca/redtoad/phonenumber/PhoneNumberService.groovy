@@ -4,6 +4,7 @@ package ca.redtoad.phonenumber
 
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
+import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber
 import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder
 
 class PhoneNumberService {
@@ -25,13 +26,27 @@ class PhoneNumberService {
         grailsApplication.config.grails.plugins.phonenumbers.defaultStrict ?: false
     }
 
-    String format(String phoneNumber, region = null) {
-        try {
-            def phoneNumberInstance = phoneNumberUtil.parse(phoneNumber, region ?: defaultRegion)
-            phoneNumberUtil.format(phoneNumberInstance, PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
-        } catch (NumberParseException e) {
-            phoneNumber
+    String format(String phoneNumber, PhoneNumberUtil.PhoneNumberFormat format = null) {
+        if(phoneNumber == null) {
+            return null
         }
+        String result = null
+        if(format == null) {
+            format = PhoneNumberUtil.PhoneNumberFormat.E164
+        }
+        for(r in allowedRegions) {
+            try {
+                def phoneNumberInstance = phoneNumberUtil.parse(phoneNumber, r)
+                if(phoneNumberUtil.isValidNumberForRegion(phoneNumberInstance, r)) {
+                    result = phoneNumberUtil.format(phoneNumberInstance, format)
+                }
+            } catch (NumberParseException e) {
+            }
+            if(result) {
+                return result
+            }
+        }
+        return phoneNumber
     }
 
     Map geolocate(String phoneNumber, region = null, locale = null) {
